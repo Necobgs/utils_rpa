@@ -1,6 +1,6 @@
 [project]
 name = "utils-rpa"
-version = "0.1.0"
+version = "0.1.1"
 description = "Conjunto de utilitários e configurações para facilitar o desenvolvimento de RPA com Python."
 authors = [
     {name = "Emanuel Borges Albano",email = "emanuelborgesdev@gmail.com.br"}
