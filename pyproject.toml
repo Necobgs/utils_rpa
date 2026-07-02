@@ -1,0 +1,49 @@
+[project]
+name = "utils-rpa"
+version = "0.1.0"
+description = "Conjunto de utilitários e configurações para facilitar o desenvolvimento de RPA com Python."
+authors = [
+    {name = "Emanuel Borges Albano",email = "emanuelborgesdev@gmail.com.br"}
+]
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.14"
+keywords = ["rpa", "automation", "automacao", "utils", "bot"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Office/Business",
+]
+dependencies = [
+]
+
+[project.urls]
+Homepage = "https://github.com/Necobgs/utils_rpa"
+Repository = "https://github.com/Necobgs/utils_rpa"
+Issues = "https://github.com/Necobgs/utils_rpa/issues"
+
+[tool.poetry]
+packages = [{include = "utils_rpa", from = "src"}]
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.0"
+ruff = "^0.9.0"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
