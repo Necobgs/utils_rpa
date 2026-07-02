@@ -133,7 +133,7 @@ class SolverRef:
 # ── Helpers internos ──────────────────────────────────────────────────────────
 
 def _get_logger(logger: logging.Logger | None) -> logging.Logger:
-    return logger if logger is not None else logging.getLogger(__name__)
+    return logger if logger is not None else logging.getLogger("__main__")
 
 
 def _resolve_api_key(api_key: str | None, logger: logging.Logger) -> str:
@@ -226,7 +226,7 @@ def cloudflare_solver_selenium(
         timeout_cloudflare_auto: Segundos aguardando resolução automática.
         timeout_solver: Segundos máximos aguardando o Anti-Captcha.
         timeout_inject_validate: Segundos aguardando validação após a injeção.
-        logger: Logger opcional. Se ``None``, usa ``logging.getLogger(__name__)``.
+        logger: Logger opcional. Se ``None``, usa ``logging.getLogger("__main__")``.
 
     Returns:
         ``True`` se o captcha foi resolvido; ``False`` se o chamador deve
@@ -414,7 +414,7 @@ def cloudflare_solver_playwright(
         timeout_cloudflare_auto: Segundos aguardando resolução automática.
         timeout_solver: Segundos máximos aguardando o Anti-Captcha.
         timeout_inject_validate: Segundos aguardando validação após a injeção.
-        logger: Logger opcional. Se ``None``, usa ``logging.getLogger(__name__)``.
+        logger: Logger opcional. Se ``None``, usa ``logging.getLogger("__main__")``.
 
     Returns:
         ``True`` se o captcha foi resolvido; ``False`` se o chamador deve

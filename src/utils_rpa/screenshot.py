@@ -20,7 +20,7 @@ __all__ = ["capture_screen", "DEFAULT_SCREENSHOT_DIR", "ALL_MONITORS"]
 
 
 def _get_logger(logger: logging.Logger | None) -> logging.Logger:
-    return logger if logger is not None else logging.getLogger(__name__)
+    return logger if logger is not None else logging.getLogger("__main__")
 
 
 def capture_screen(
@@ -43,7 +43,7 @@ def capture_screen(
             não for informado. Criado se não existir. Padrão: ``./screenshots``.
         file_name: Nome do arquivo. Se ``None``, gera um nome com timestamp
             (ex.: ``screenshot_20260702_112500_123456.png``).
-        logger: Logger opcional. Se ``None``, usa ``logging.getLogger(__name__)``.
+        logger: Logger opcional. Se ``None``, usa ``logging.getLogger("__main__")``.
 
     Returns:
         O caminho (``Path``) do arquivo de screenshot gerado.

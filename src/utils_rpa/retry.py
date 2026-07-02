@@ -17,7 +17,7 @@ __all__ = ["retry_with_logging", "DEFAULT_ATTEMPTS", "DEFAULT_DELAY"]
 
 
 def retry_with_logging(
-    logger_name: str = __name__,
+    logger_name: str = "__main__",
     *,
     attempts: int = DEFAULT_ATTEMPTS,
     delay: float = DEFAULT_DELAY,

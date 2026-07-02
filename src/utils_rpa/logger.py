@@ -11,7 +11,8 @@ DEFAULT_LOG_DIR = "./logs"
 DEFAULT_MAX_BYTES = 5 * 1024 * 1024  # 5 MB
 DEFAULT_BACKUP_COUNT = 3
 DEFAULT_LEVEL = logging.INFO
-DEFAULT_FORMAT = "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
+DEFAULT_FORMAT = "%(asctime)s | %(levelname)-8s | %(message)s"
+DEFAULT_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 __all__ = [
     "configure_logger",
@@ -22,7 +23,7 @@ __all__ = [
 
 
 def configure_logger(
-    name: str = __name__,
+    name: str = '__main__',
     *,
     log_dir: str | Path = DEFAULT_LOG_DIR,
     file_name: str | None = None,
@@ -30,6 +31,7 @@ def configure_logger(
     backup_count: int = DEFAULT_BACKUP_COUNT,
     level: int = DEFAULT_LEVEL,
     log_format: str = DEFAULT_FORMAT,
+    date_format: str = DEFAULT_DATE_FORMAT,
 ) -> logging.Logger:
     """Cria e configura um logger com saída para console e arquivo rotativo.
 
@@ -37,7 +39,7 @@ def configure_logger(
     múltiplos processos/threads), com rotação por tamanho.
 
     Args:
-        name: Nome do logger. Por padrão, o nome do módulo (``__name__``).
+        name: Nome do logger. Por padrão, o nome do módulo (``"__main__"``).
         log_dir: Diretório onde os arquivos de log serão salvos. Criado se
             não existir. Padrão: ``./logs``.
         file_name: Nome do arquivo de log. Se ``None``, usa ``<name>.log``.
@@ -46,6 +48,8 @@ def configure_logger(
         backup_count: Quantidade de arquivos de backup mantidos. Padrão: 3.
         level: Nível de log. Padrão: ``logging.INFO``.
         log_format: Formato das mensagens de log.
+        date_format: Formato do ``asctime`` (data/hora), sem milissegundos.
+            Padrão: ``%Y-%m-%d %H:%M:%S`` (ano-mês-dia hora:minuto:segundo).
 
     Returns:
         O logger configurado.
@@ -58,7 +62,7 @@ def configure_logger(
     if logger.handlers:
         return logger
 
-    formatter = logging.Formatter(log_format)
+    formatter = logging.Formatter(log_format, datefmt=date_format)
 
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(formatter)
