@@ -12,7 +12,7 @@ Estender `@retry_with_logging` para funções `async def`, mantendo a API única
 | Detecção | No decorate-time via `inspect.iscoroutinefunction` |
 | Delay async | `asyncio.sleep` (não bloqueia o event loop) |
 | Delay sync | `time.sleep` (comportamento atual) |
-| Escopo anti_captcha | Apenas import preparado; sem decorar funções ainda |
+| anti_captcha | Fora de escopo (sem import nem decorator) |
 | Testes async | `asyncio.run(...)` (sem adicionar `pytest-asyncio`) |
 
 ## Comportamento
@@ -36,12 +36,10 @@ Logging, mensagens e política de exceção (`except Exception`) são idênticos
 | `src/utils_rpa/retry.py` | Wrappers sync/async; imports `asyncio`, `inspect` |
 | `tests/test_retry.py` | Casos async espelhando sync (sucesso, retry, esgotar, log on/off) |
 | `README.md` | Exemplo com `async def` + `await` |
-| `src/utils_rpa/anti_captcha.py` | `from utils_rpa.retry import retry_with_logging` (sem `@`) |
 
 ## Fora de escopo
 
-- Decorar `image_to_text` / `recaptchav2_enterprise_task_proxyless`
-- Alterar o polling interno (`loops_response`)
+- Qualquer mudança em `anti_captcha` (import ou decorator)
 - Adicionar `pytest-asyncio` como dependência
 - Tratar funções sync que retornam awaitables
 
@@ -50,4 +48,3 @@ Logging, mensagens e política de exceção (`except Exception`) são idênticos
 - Testes sync existentes continuam passando
 - Novos testes async cobrem sucesso, retry até sucesso, esgotamento e logging
 - `@retry_with_logging` em `async def` retorna coroutine awaitable
-- Import em `anti_captcha` não altera comportamento runtime
