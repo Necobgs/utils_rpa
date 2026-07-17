@@ -72,7 +72,7 @@ Saída (formato padrão, sem milissegundos):
 
 ### `retry_with_logging`
 
-Decorator que reexecuta a função quando ela lança uma exceção, registrando cada tentativa no logger. Defaults: 5 tentativas, 1 segundo entre elas, logging ativado.
+Decorator que reexecuta a função (sync ou `async def`) quando ela lança uma exceção, registrando cada tentativa no logger. Defaults: 5 tentativas, 1 segundo entre elas, logging ativado.
 
 ```python
 from utils_rpa import retry_with_logging
@@ -93,6 +93,16 @@ Sem logging:
 @retry_with_logging(attempts=5, delay=1, use_log=False)
 def tarefa_silenciosa():
     ...
+```
+
+Com função assíncrona (o delay usa `asyncio.sleep`):
+
+```python
+@retry_with_logging("meu_bot", attempts=3, delay=2)
+async def baixar_relatorio_async():
+    return await http_get_async("https://exemplo/relatorio")
+
+relatorio = await baixar_relatorio_async()
 ```
 
 ---
