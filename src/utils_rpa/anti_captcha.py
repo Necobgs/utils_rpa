@@ -652,3 +652,55 @@ async def image_to_text(api_key: str, base64_image: str, loops_response: int = 1
                 raise Exception("Captcha retornou uma solução vazia.")
 
         raise Exception("Tempo limite de resolução do captcha excedido.")
+
+
+async def recaptchav2_enterprise_task_proxyless(website_url: str, site_key: str, api_key: str, loops_response: int = 60) -> str:
+    
+    from aiohttp import ClientSession
+    from asyncio import sleep
+    
+    logger = logging.getLogger('__main__')
+    async with ClientSession() as session:
+        payload = {
+            "clientKey":api_key,
+            "task":
+                {
+                    "type":"RecaptchaV2EnterpriseTaskProxyless",
+                    "websiteURL":website_url,
+                    "websiteKey":site_key
+                },
+            "softId": 0
+        }
+        async with session.post("https://api.anti-captcha.com/createTask",json=payload) as response:
+            response_json = await response.json()
+
+            if response_json.get("errorId", 0) != 0:
+                raise Exception(
+                    f"Não foi possível resolver o captcha: {response_json.get('errorDescription')}"
+                )
+
+        task_id = response_json.get("taskId")
+        if not task_id:
+            raise Exception("Captcha não retornou um taskId.")
+
+        for try_attempt in range(loops_response):
+            await sleep(1)
+            logger.info("Consultando resultado da solução do captcha, tentativa %s de %s", try_attempt + 1, loops_response)
+            result_payload = {"clientKey": api_key, "taskId": task_id}
+            async with session.post(
+                "https://api.anti-captcha.com/getTaskResult",
+                json=result_payload,
+                timeout=120.0,
+            ) as result_response:
+                result_response.raise_for_status()
+                result_json = await result_response.json()
+
+            if result_json.get("errorId", 0) != 0:
+                raise Exception(f"getTaskResult error: {result_json.get('errorDescription')}")
+
+            if result_json.get("status") == "ready":
+                print(f"Solução do captcha: {result_json!r}")
+                solution = result_json.get("solution", {}).get("gRecaptchaResponse")
+                if solution:
+                    return solution
+                raise Exception("Captcha retornou uma solução vazia.")
