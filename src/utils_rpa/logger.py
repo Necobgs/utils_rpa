@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import sys
 from pathlib import Path
 
 from concurrent_log_handler import ConcurrentRotatingFileHandler
@@ -64,9 +65,15 @@ def configure_logger(
 
     formatter = logging.Formatter(log_format, datefmt=date_format)
 
-    console_handler = logging.StreamHandler()
+    console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(formatter)
+    console_handler.addFilter(lambda record: record.levelno < logging.ERROR)
     logger.addHandler(console_handler)
+
+    stderr_handler = logging.StreamHandler(sys.stderr)
+    stderr_handler.setFormatter(formatter)
+    stderr_handler.setLevel(logging.ERROR)
+    logger.addHandler(stderr_handler)
 
     log_path = Path(log_dir)
     log_path.mkdir(parents=True, exist_ok=True)
