@@ -8,11 +8,12 @@ Conjunto de utilitários e configurações para facilitar o desenvolvimento de *
 pip install utils-rpa
 ```
 
-Alguns recursos dependem de bibliotecas extras (Selenium/Playwright). Instale conforme o que for usar:
+Alguns recursos dependem de bibliotecas extras (Selenium, Playwright, aiohttp). Elas **não** são instaladas por padrão — instale apenas o extra correspondente ao que for usar:
 
 ```bash
-pip install "utils-rpa[selenium]"     # resolução de captcha via Selenium
-pip install "utils-rpa[playwright]"   # resolução de captcha via Playwright
+pip install "utils-rpa[selenium]"     # cloudflare_solver_selenium
+pip install "utils-rpa[playwright]"   # cloudflare_solver_playwright
+pip install "utils-rpa[aiohttp]"      # image_to_text / recaptchav2_enterprise_task_proxyless (async)
 pip install "utils-rpa[all]"          # todos os extras
 ```
 
