@@ -31,7 +31,8 @@ Oferecer uma opção em `configure_logger` para excluir arquivos `.log`/`.lock` 
 `configure_logger(..., max_age_days: int | None = None, ...)`:
 
 - Parâmetro novo, mantém compatibilidade (default `None` = sem mudança de comportamento).
-- Dentro do bloco que cria os handlers (após todos criados, antes do `return logger`), se `max_age_days is not None`, chama `cleanup_old_logs(log_dir, max_age_days, logger=logger)` — passando o logger já configurado, para que os warnings apareçam no console/arquivo do próprio bot.
+- Ordem de execução: **depois** de `log_path.mkdir(...)` e **antes** de instanciar o `ConcurrentRotatingFileHandler`. Isso evita tentar excluir o próprio arquivo de log corrente enquanto ele está aberto pelo handler (no Windows, um arquivo aberto não pode ser excluído — geraria um warning espúrio no arquivo que acabou de ser criado).
+- Se `max_age_days is not None`, chama `cleanup_old_logs(log_dir, max_age_days, logger=logger)` — usando o logger já com os handlers de console/stderr (mas ainda sem o handler de arquivo), para que os warnings de falha de exclusão apareçam no console.
 - Como a função só executa dentro do bloco `if logger.handlers: return logger` (guarda de deduplicação), a limpeza roda uma vez por logger/processo — igual ao restante da configuração.
 
 ## Arquivos afetados
