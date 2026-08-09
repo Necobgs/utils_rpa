@@ -5,7 +5,7 @@ from utils_rpa.logger import cleanup_old_logs, configure_logger
 from utils_rpa.retry import retry_with_logging
 from utils_rpa.screenshot import capture_screen
 
-__version__ = "0.2.1"
+__version__ = "0.2.2"
 
 __all__ = [
     "__version__",

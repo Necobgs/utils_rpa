@@ -13,7 +13,7 @@ DEFAULT_LOG_DIR = "./logs"
 DEFAULT_MAX_BYTES = 5 * 1024 * 1024  # 5 MB
 DEFAULT_BACKUP_COUNT = 3
 DEFAULT_LEVEL = logging.INFO
-DEFAULT_FORMAT = "%(asctime)s | %(levelname)-8s | %(message)s"
+DEFAULT_FORMAT = "%(asctime)s | %(name)-15s | %(levelname)-8s | %(message)s"
 DEFAULT_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 __all__ = [
@@ -71,7 +71,7 @@ def cleanup_old_logs(
 
 
 def configure_logger(
-    name: str = '__main__',
+    name: str | None = None,
     *,
     log_dir: str | Path = DEFAULT_LOG_DIR,
     file_name: str | None = None,
@@ -88,10 +88,12 @@ def configure_logger(
     múltiplos processos/threads), com rotação por tamanho.
 
     Args:
-        name: Nome do logger. Por padrão, o nome do módulo (``"__main__"``).
+        name: Nome do logger. Se ``None``, usa o logger root (``logging.getLogger()``).
         log_dir: Diretório onde os arquivos de log serão salvos. Criado se
             não existir. Padrão: ``./logs``.
-        file_name: Nome do arquivo de log. Se ``None``, usa ``<name>.log``.
+        file_name: Nome do arquivo de log. Se ``None``, usa ``<name>.log``;
+            se ``name`` também for ``None``, usa ``automation.log``. Se o
+            valor já terminar com ``.log``, a extensão não é duplicada.
         max_bytes: Tamanho máximo do arquivo antes de rotacionar, em bytes.
             Padrão: 5 MB.
         backup_count: Quantidade de arquivos de backup mantidos. Padrão: 3.
@@ -132,7 +134,10 @@ def configure_logger(
     if max_age_days is not None:
         cleanup_old_logs(log_path, max_age_days, logger=logger)
 
-    file_path = log_path / (file_name or f"{name}.log")
+    resolved_file_name = file_name or name or "automation"
+    if not resolved_file_name.endswith(".log"):
+        resolved_file_name = f"{resolved_file_name}.log"
+    file_path = log_path / resolved_file_name
     file_handler = ConcurrentRotatingFileHandler(
         str(file_path),
         maxBytes=max_bytes,

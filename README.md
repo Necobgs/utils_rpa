@@ -33,7 +33,7 @@ pip install "utils-rpa[all]"          # todos os extras
 
 ### `configure_logger`
 
-Cria um logger que escreve no **console** e em um **arquivo rotativo** (via `concurrent-log-handler`, seguro para múltiplos processos/threads). Por padrão salva em `./logs`, com arquivos de até 5 MB e 3 backups.
+Cria um logger que escreve no **console** e em um **arquivo rotativo** (via `concurrent-log-handler`, seguro para múltiplos processos/threads). Por padrão salva em `./logs`, com arquivos de até 5 MB e 3 backups. Se `name` for omitido, usa o logger root e o arquivo `automation.log`.
 
 ```python
 from utils_rpa import configure_logger
@@ -80,7 +80,7 @@ print(f"{len(removidos)} arquivo(s) removido(s).")
 Saída (formato padrão, sem milissegundos):
 
 ```
-2026-07-02 14:04:14 | INFO     | Iniciando automação
+2026-07-02 14:04:14 | meu_bot         | INFO     | Iniciando automação
 ```
 
 > Dica: use `logger.exception("...")` **dentro de um bloco `except`** para registrar o traceback automaticamente.

@@ -56,11 +56,39 @@ def test_configure_logger_custom_parameters(tmp_path):
 
     assert logger.level == logging.DEBUG
     assert (tmp_path / "custom.log").exists()
+    assert not (tmp_path / "custom.log.log").exists()
     file_handler = next(
         h for h in logger.handlers if isinstance(h, ConcurrentRotatingFileHandler)
     )
     assert file_handler.maxBytes == 1024
     assert file_handler.backupCount == 7
+
+
+def test_configure_logger_name_none_uses_root_and_automation_log(tmp_path):
+    root = logging.getLogger()
+    previous_handlers = list(root.handlers)
+    root.handlers.clear()
+    try:
+        logger = configure_logger(log_dir=tmp_path)
+        assert logger is root
+        logger.info("mensagem de teste")
+        assert (tmp_path / "automation.log").exists()
+    finally:
+        for handler in list(root.handlers):
+            handler.close()
+            root.removeHandler(handler)
+        for handler in previous_handlers:
+            root.addHandler(handler)
+
+
+def test_configure_logger_file_name_without_extension_gets_log_suffix(tmp_path):
+    logger = configure_logger(
+        "test_rpa_stem",
+        log_dir=tmp_path,
+        file_name="sem_extensao",
+    )
+    logger.info("mensagem de teste")
+    assert (tmp_path / "sem_extensao.log").exists()
 
 
 def test_configure_logger_does_not_duplicate_handlers(tmp_path):
