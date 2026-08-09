@@ -61,6 +61,22 @@ logger = configure_logger(
 )
 ```
 
+Limpando arquivos `.log`/`.lock` antigos automaticamente (por idade, em dias):
+
+```python
+logger = configure_logger("meu_bot", max_age_days=30)
+# Ao configurar, remove de ./logs qualquer *.log*/*.lock com mais de 30 dias.
+```
+
+Ou de forma isolada, sem passar por `configure_logger`:
+
+```python
+from utils_rpa import cleanup_old_logs
+
+removidos = cleanup_old_logs("./logs", max_age_days=30)
+print(f"{len(removidos)} arquivo(s) removido(s).")
+```
+
 Saída (formato padrão, sem milissegundos):
 
 ```
