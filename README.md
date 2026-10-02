@@ -24,6 +24,8 @@ pip install "utils-rpa[all]"          # todos os extras
 ## Ferramentas disponíveis
 
 - [`configure_logger`](#configure_logger) — logger pronto (console + arquivo rotativo).
+- [`configure_logger_by_id`](#configure_logger_by_id) — logger com arquivo por id e limite de ids.
+- [`cleanup_logs_by_last_update`](#cleanup_logs_by_last_update) — remove os grupos de id mais antigos.
 - [`retry_with_logging`](#retry_with_logging) — decorator de retentativa com logging.
 - [`capture_screen`](#capture_screen) — screenshot da tela inteira do computador.
 - [`extract_inputs`](#extract_inputs) — extrai os campos de um formulário HTML.
@@ -84,6 +86,37 @@ Saída (formato padrão, sem milissegundos):
 ```
 
 > Dica: use `logger.exception("...")` **dentro de um bloco `except`** para registrar o traceback automaticamente.
+
+### `configure_logger_by_id`
+
+Igual ao `configure_logger`, com o id no arquivo: `meu_bot.log` vira `meu_bot-id-123.log`. Sem `backup_count`, o backup não é descartado. Com `max_ids`, os menores ids do mesmo nome-base são removidos; o id desta chamada permanece.
+
+```python
+from utils_rpa import configure_logger_by_id
+
+logger = configure_logger_by_id("meu_bot", id=123, max_ids=5)
+logger.info("executando 123")
+
+logger = configure_logger_by_id("meu_bot", id=456, max_ids=5)
+logger.info("esta linha vai só para meu_bot-id-456.log")
+```
+
+Para limitar os backups desse id, passe `backup_count`:
+
+```python
+logger = configure_logger_by_id("meu_bot", id=123, backup_count=3)
+```
+
+### `cleanup_logs_by_last_update`
+
+Remove grupos `{nome}-id-{número}` até sobrar `keep` ids. A data é a do arquivo base; se ele não existir, a do backup de menor índice. O id em uso não é protegido.
+
+```python
+from utils_rpa import cleanup_logs_by_last_update
+
+removidos = cleanup_logs_by_last_update("./logs", "meu_bot", keep=5)
+print(f"{len(removidos)} arquivo(s) removido(s).")
+```
 
 ---
 

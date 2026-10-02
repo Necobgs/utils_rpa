@@ -652,3 +652,11 @@ def test_configure_logger_by_id_warns_and_continues_when_delete_fails(tmp_path, 
         assert any("bot-id-1.log" in message for message in caplog.messages)
     finally:
         _close_logger("test_rpa_by_id_warn")
+
+
+def test_logger_by_id_functions_are_exported():
+    import utils_rpa
+    from utils_rpa.logger import cleanup_logs_by_last_update, configure_logger_by_id
+
+    assert utils_rpa.cleanup_logs_by_last_update is cleanup_logs_by_last_update
+    assert utils_rpa.configure_logger_by_id is configure_logger_by_id

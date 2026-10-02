@@ -20,10 +20,13 @@ DEFAULT_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 __all__ = [
     "configure_logger",
+    "configure_logger_by_id",
     "cleanup_old_logs",
+    "cleanup_logs_by_last_update",
     "DEFAULT_LOG_DIR",
     "DEFAULT_MAX_BYTES",
     "DEFAULT_BACKUP_COUNT",
+    "UNLIMITED_BACKUP_COUNT",
 ]
 
 
