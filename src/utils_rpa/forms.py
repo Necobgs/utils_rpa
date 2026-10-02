@@ -56,7 +56,7 @@ def extract_inputs(soup: BeautifulSoup | Tag) -> dict[str, str]:
         if input_type in _TOGGLE_INPUT_TYPES:
             # Só entra na submissão se estiver marcado.
             if input_tag.has_attr("checked"):
-                data[name] = input_tag.get("value", "true")
+                data[name] = input_tag.get("value", "on")
             continue
 
         data[name] = input_tag.get("value", "")
