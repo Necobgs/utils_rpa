@@ -3,6 +3,8 @@ import os
 import time
 from pathlib import Path
 
+import pytest
+
 from concurrent_log_handler import ConcurrentRotatingFileHandler
 
 from utils_rpa import configure_logger
@@ -172,3 +174,159 @@ def test_configure_logger_keeps_files_when_max_age_days_is_none(tmp_path):
     configure_logger("test_rpa_no_cleanup", log_dir=tmp_path)
 
     assert old_backup.exists()
+
+
+def test_cleanup_logs_by_last_update_removes_oldest_group(tmp_path):
+    from utils_rpa.logger import cleanup_logs_by_last_update
+
+    old = tmp_path / "automation-id-1.log"
+    old_backup = tmp_path / "automation-id-1.log.1"
+    old_lock = tmp_path / "automation-id-1.lock"
+    mid = tmp_path / "automation-id-2.log"
+    new = tmp_path / "automation-id-3.log"
+    _touch_with_age(old, 300)
+    _touch_with_age(old_backup, 50)
+    _touch_with_age(old_lock, 50)
+    _touch_with_age(mid, 200)
+    _touch_with_age(new, 100)
+
+    removed = cleanup_logs_by_last_update(tmp_path, "automation", keep=2)
+
+    assert set(removed) == {old, old_backup, old_lock}
+    assert not old.exists()
+    assert not old_backup.exists()
+    assert not old_lock.exists()
+    assert mid.exists()
+    assert new.exists()
+
+
+def test_cleanup_logs_by_last_update_accepts_log_suffix_in_file_name(tmp_path):
+    from utils_rpa.logger import cleanup_logs_by_last_update
+
+    old = tmp_path / "automation-id-1.log"
+    new = tmp_path / "automation-id-2.log"
+    _touch_with_age(old, 300)
+    _touch_with_age(new, 100)
+
+    removed = cleanup_logs_by_last_update(tmp_path, "automation.log", keep=1)
+
+    assert removed == [old]
+    assert not old.exists()
+    assert new.exists()
+
+
+def test_cleanup_logs_by_last_update_uses_lowest_backup_index_when_base_missing(tmp_path):
+    from utils_rpa.logger import cleanup_logs_by_last_update
+
+    low_index = tmp_path / "automation-id-1.log.1"
+    high_index = tmp_path / "automation-id-1.log.3"
+    other = tmp_path / "automation-id-2.log"
+    _touch_with_age(low_index, 10)
+    _touch_with_age(high_index, 900)
+    _touch_with_age(other, 200)
+
+    removed = cleanup_logs_by_last_update(tmp_path, "automation", keep=1)
+
+    assert set(removed) == {other}
+    assert low_index.exists()
+    assert high_index.exists()
+    assert not other.exists()
+
+
+def test_cleanup_logs_by_last_update_treats_lock_only_as_oldest(tmp_path):
+    from utils_rpa.logger import cleanup_logs_by_last_update
+
+    lock = tmp_path / "automation-id-8.lock"
+    base = tmp_path / "automation-id-9.log"
+    _touch_with_age(lock, 1)
+    _touch_with_age(base, 10)
+
+    removed = cleanup_logs_by_last_update(tmp_path, "automation", keep=1)
+
+    assert removed == [lock]
+    assert not lock.exists()
+    assert base.exists()
+
+
+def test_cleanup_logs_by_last_update_tie_removes_smaller_id(tmp_path):
+    from utils_rpa.logger import cleanup_logs_by_last_update
+
+    smaller = tmp_path / "automation-id-4.log"
+    larger = tmp_path / "automation-id-9.log"
+    _touch_with_age(smaller, 100)
+    _touch_with_age(larger, 100)
+
+    removed = cleanup_logs_by_last_update(tmp_path, "automation", keep=1)
+
+    assert removed == [smaller]
+    assert not smaller.exists()
+    assert larger.exists()
+
+
+def test_cleanup_logs_by_last_update_keep_zero_removes_only_matching_stem(tmp_path):
+    from utils_rpa.logger import cleanup_logs_by_last_update
+
+    match = tmp_path / "automation-id-1.log"
+    other = tmp_path / "other-id-1.log"
+    leading_zero = tmp_path / "automation-id-007.log"
+    match.write_text("a")
+    other.write_text("b")
+    leading_zero.write_text("c")
+
+    removed = cleanup_logs_by_last_update(tmp_path, "automation", keep=0)
+
+    assert removed == [match]
+    assert not match.exists()
+    assert other.exists()
+    assert leading_zero.exists()
+
+
+def test_cleanup_logs_by_last_update_keeps_all_when_under_limit(tmp_path):
+    from utils_rpa.logger import cleanup_logs_by_last_update
+
+    kept = tmp_path / "automation-id-1.log"
+    kept.write_text("a")
+
+    assert cleanup_logs_by_last_update(tmp_path, "automation", keep=3) == []
+    assert kept.exists()
+
+
+def test_cleanup_logs_by_last_update_missing_dir_returns_empty(tmp_path):
+    from utils_rpa.logger import cleanup_logs_by_last_update
+
+    assert cleanup_logs_by_last_update(tmp_path / "nao", "automation", keep=1) == []
+
+
+def test_cleanup_logs_by_last_update_rejects_invalid_keep_and_empty_name(tmp_path):
+    from utils_rpa.logger import cleanup_logs_by_last_update
+
+    missing = tmp_path / "nao"
+    with pytest.raises(ValueError, match="keep"):
+        cleanup_logs_by_last_update(missing, "automation", keep=-1)
+    with pytest.raises(ValueError, match="keep"):
+        cleanup_logs_by_last_update(missing, "automation", keep=True)
+    with pytest.raises(ValueError, match="file_name"):
+        cleanup_logs_by_last_update(tmp_path, "", keep=1)
+    assert not missing.exists()
+
+
+def test_cleanup_logs_by_last_update_skips_id_that_remains_after_failure(tmp_path, monkeypatch, caplog):
+    from utils_rpa.logger import cleanup_logs_by_last_update
+
+    first = tmp_path / "automation-id-1.log"
+    second = tmp_path / "automation-id-2.log"
+    first.write_text("a")
+    second.write_text("b")
+
+    def _boom(self):
+        raise OSError("arquivo em uso")
+
+    monkeypatch.setattr(Path, "unlink", _boom)
+    with caplog.at_level(logging.WARNING):
+        removed = cleanup_logs_by_last_update(tmp_path, "automation", keep=0)
+
+    assert removed == []
+    assert first.exists()
+    assert second.exists()
+    assert any("automation-id-1.log" in message for message in caplog.messages)
+    assert any("automation-id-2.log" in message for message in caplog.messages)

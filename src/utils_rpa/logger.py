@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import sys
 import time
 from pathlib import Path
@@ -68,6 +69,125 @@ def cleanup_old_logs(
             log.warning("Não foi possível excluir o log antigo '%s': %s", file_path, exc)
 
     return removed
+
+
+def _log_stem(file_name: str) -> str:
+    if file_name.endswith(".log"):
+        return file_name[:-4]
+    return file_name
+
+
+def _id_patterns(stem: str) -> tuple[re.Pattern[str], re.Pattern[str]]:
+    escaped = re.escape(stem)
+    file_re = re.compile(rf"^{escaped}-id-([1-9]\d*)\.log(?:\.(\d+))?$")
+    lock_re = re.compile(rf"^{escaped}-id-([1-9]\d*)\.lock$")
+    return file_re, lock_re
+
+
+def _iter_log_id_groups(log_dir: Path, stem: str) -> dict[int, list[Path]]:
+    file_re, lock_re = _id_patterns(stem)
+    groups: dict[int, list[Path]] = {}
+    if not log_dir.is_dir():
+        return groups
+    for entry in log_dir.iterdir():
+        if not entry.is_file():
+            continue
+        match = file_re.match(entry.name) or lock_re.match(entry.name)
+        if match is None:
+            continue
+        groups.setdefault(int(match.group(1)), []).append(entry)
+    return groups
+
+
+def _group_age_key(stem: str, log_id: int, files: list[Path]) -> tuple[int, float, int]:
+    file_re, _lock_re = _id_patterns(stem)
+    base_mtime: float | None = None
+    lowest_backup: tuple[int, float] | None = None
+    for file_path in files:
+        match = file_re.match(file_path.name)
+        if match is None:
+            continue
+        backup_index = match.group(2)
+        mtime = file_path.stat().st_mtime
+        if backup_index is None:
+            base_mtime = mtime
+            continue
+        index = int(backup_index)
+        if lowest_backup is None or index < lowest_backup[0]:
+            lowest_backup = (index, mtime)
+    if base_mtime is not None:
+        return (1, base_mtime, log_id)
+    if lowest_backup is not None:
+        return (1, lowest_backup[1], log_id)
+    return (0, 0.0, log_id)
+
+
+def _delete_log_files(files: list[Path], logger: logging.Logger) -> list[Path]:
+    removed: list[Path] = []
+    for file_path in files:
+        try:
+            file_path.unlink()
+        except OSError as exc:
+            logger.warning(
+                "Não foi possível excluir o log antigo '%s': %s",
+                file_path,
+                exc,
+            )
+        else:
+            removed.append(file_path)
+    return removed
+
+
+def cleanup_logs_by_last_update(
+    log_dir: str | Path,
+    file_name: str,
+    keep: int,
+    *,
+    logger: logging.Logger | None = None,
+) -> list[Path]:
+    """Remove grupos de log por id até sobrar ``keep`` grupos, dos mais antigos para os mais novos.
+
+    A data de um grupo é o ``mtime`` de ``{stem}-id-{id}.log``. Se esse arquivo
+    não existir, usa o ``mtime`` do backup de menor índice. Um id que só tem
+    ``.lock`` é tratado como o mais antigo. Empate de data remove o menor id.
+
+    Args:
+        log_dir: Pasta dos logs. Se não existir, retorna lista vazia.
+        file_name: Nome-base. ``automation`` e ``automation.log`` casam os mesmos grupos.
+        keep: Quantidade de ids que permanecem. ``0`` remove todos os grupos do stem.
+        logger: Logger dos warnings de falha. Se ``None``, usa o logger do módulo.
+
+    Returns:
+        Caminhos efetivamente removidos.
+    """
+    if isinstance(keep, bool) or not isinstance(keep, int) or keep < 0:
+        raise ValueError("keep deve ser um inteiro maior ou igual a zero")
+    if file_name == "":
+        raise ValueError("file_name não pode ser vazio")
+
+    log = logger or logging.getLogger(__name__)
+    path = Path(log_dir)
+    if not path.is_dir():
+        return []
+
+    stem = _log_stem(file_name)
+    removed: list[Path] = []
+    skipped: set[int] = set()
+    while True:
+        groups = _iter_log_id_groups(path, stem)
+        if len(groups) <= keep:
+            return removed
+        candidates = [log_id for log_id in groups if log_id not in skipped]
+        if not candidates:
+            return removed
+        victim = min(
+            candidates,
+            key=lambda log_id: _group_age_key(stem, log_id, groups[log_id]),
+        )
+        deleted = _delete_log_files(groups[victim], log)
+        removed.extend(deleted)
+        if any(file_path.exists() for file_path in groups[victim]):
+            skipped.add(victim)
 
 
 def configure_logger(
