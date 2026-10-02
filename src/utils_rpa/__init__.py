@@ -10,7 +10,7 @@ from utils_rpa.logger import (
 from utils_rpa.retry import retry_with_logging
 from utils_rpa.screenshot import capture_screen
 
-__version__ = "0.2.2"
+__version__ = "0.2.3"
 
 __all__ = [
     "__version__",
