@@ -13,6 +13,7 @@ from concurrent_log_handler import ConcurrentRotatingFileHandler
 DEFAULT_LOG_DIR = "./logs"
 DEFAULT_MAX_BYTES = 5 * 1024 * 1024  # 5 MB
 DEFAULT_BACKUP_COUNT = 3
+UNLIMITED_BACKUP_COUNT = sys.maxsize
 DEFAULT_LEVEL = logging.INFO
 DEFAULT_FORMAT = "%(asctime)s | %(name)-15s | %(levelname)-8s | %(message)s"
 DEFAULT_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
@@ -287,4 +288,132 @@ def configure_logger(
 
     file_path = log_path / _resolve_log_file_name(name, file_name)
     logger.addHandler(_build_file_handler(file_path, max_bytes, backup_count, formatter))
+    return logger
+
+
+def _require_positive_int(value: object, label: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+        raise ValueError(f"{label} deve ser um inteiro positivo")
+    return value
+
+
+def _remove_lowest_log_ids(
+    log_dir: Path,
+    stem: str,
+    max_ids: int,
+    current_id: int,
+    logger: logging.Logger,
+) -> list[Path]:
+    removed: list[Path] = []
+    skipped: set[int] = set()
+    while True:
+        groups = _iter_log_id_groups(log_dir, stem)
+        present = set(groups) | {current_id}
+        if len(present) <= max_ids:
+            return removed
+        candidates = [
+            log_id
+            for log_id in present
+            if log_id != current_id and log_id not in skipped
+        ]
+        if not candidates:
+            return removed
+        victim = min(candidates)
+        files = groups.get(victim, [])
+        removed.extend(_delete_log_files(files, logger))
+        if any(file_path.exists() for file_path in files):
+            skipped.add(victim)
+
+
+def _formatter_in_use(logger: logging.Logger) -> logging.Formatter:
+    for handler in logger.handlers:
+        if isinstance(handler.formatter, logging.Formatter):
+            return handler.formatter
+    raise RuntimeError("logger sem formatter")
+
+
+def _file_handler_for(logger: logging.Logger, file_path: Path) -> ConcurrentRotatingFileHandler | None:
+    resolved = file_path.resolve()
+    for handler in logger.handlers:
+        if not isinstance(handler, ConcurrentRotatingFileHandler):
+            continue
+        if Path(handler.baseFilename).resolve() == resolved:
+            return handler
+    return None
+
+
+def configure_logger_by_id(
+    name: str | None = None,
+    *,
+    id: int,
+    log_dir: str | Path = DEFAULT_LOG_DIR,
+    file_name: str | None = None,
+    max_bytes: int = DEFAULT_MAX_BYTES,
+    backup_count: int | None = None,
+    max_ids: int | None = None,
+    level: int = DEFAULT_LEVEL,
+    log_format: str = DEFAULT_FORMAT,
+    date_format: str = DEFAULT_DATE_FORMAT,
+) -> logging.Logger:
+    """Cria um logger cujo arquivo termina em ``-id-{id}.log``.
+
+    Sem ``backup_count``, os backups não são descartados. Com ``max_ids``,
+    remove os menores ids do mesmo nome-base até sobrar esse limite, sem
+    remover o ``id`` desta chamada.
+
+    Args:
+        name: Nome do logger. Se ``None``, usa o logger root.
+        id: Identificador positivo do arquivo.
+        log_dir: Pasta dos logs. Criada se não existir.
+        file_name: Nome-base do arquivo. Se ``None``, usa ``name`` ou ``automation``.
+        max_bytes: Tamanho máximo do arquivo ativo antes de rotacionar.
+        backup_count: Backups mantidos. ``None`` não descarta backup.
+        max_ids: Máximo de ids do mesmo nome-base. ``None`` não remove ids.
+        level: Nível aplicado só na primeira configuração desse logger.
+        log_format: Formato aplicado só na primeira configuração.
+        date_format: Formato de data aplicado só na primeira configuração.
+
+    Returns:
+        O logger configurado.
+    """
+    _require_positive_int(id, "id")
+    if max_ids is not None:
+        _require_positive_int(max_ids, "max_ids")
+    if file_name == "":
+        raise ValueError("file_name não pode ser vazio")
+
+    resolved_backup_count = UNLIMITED_BACKUP_COUNT if backup_count is None else backup_count
+    resolved_file_name = _resolve_log_file_name(name, file_name, id)
+    stem = _log_stem(file_name or name or "automation")
+
+    logger = logging.getLogger(name)
+    already_configured = bool(logger.handlers)
+    log_path = Path(log_dir)
+    log_path.mkdir(parents=True, exist_ok=True)
+    file_path = log_path / resolved_file_name
+
+    for handler in list(logger.handlers):
+        if not isinstance(handler, ConcurrentRotatingFileHandler):
+            continue
+        if Path(handler.baseFilename).resolve() == file_path.resolve():
+            continue
+        handler.close()
+        logger.removeHandler(handler)
+
+    if not already_configured:
+        logger.setLevel(level)
+        formatter = logging.Formatter(log_format, datefmt=date_format)
+        for handler in _build_console_handlers(formatter):
+            logger.addHandler(handler)
+    else:
+        formatter = _formatter_in_use(logger)
+
+    if max_ids is not None:
+        _remove_lowest_log_ids(log_path, stem, max_ids, id, logger)
+
+    if _file_handler_for(logger, file_path) is None:
+        file_path.touch()
+        logger.addHandler(
+            _build_file_handler(file_path, max_bytes, resolved_backup_count, formatter)
+        )
     return logger
