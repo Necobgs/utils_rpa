@@ -190,6 +190,45 @@ def cleanup_logs_by_last_update(
             skipped.add(victim)
 
 
+def _resolve_log_file_name(
+    name: str | None,
+    file_name: str | None,
+    log_id: int | None = None,
+) -> str:
+    stem = _log_stem(file_name or name or "automation")
+    if log_id is None:
+        return f"{stem}.log"
+    return f"{stem}-id-{log_id}.log"
+
+
+def _build_console_handlers(
+    formatter: logging.Formatter,
+) -> tuple[logging.Handler, logging.Handler]:
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(formatter)
+    console_handler.addFilter(lambda record: record.levelno < logging.ERROR)
+    stderr_handler = logging.StreamHandler(sys.stderr)
+    stderr_handler.setFormatter(formatter)
+    stderr_handler.setLevel(logging.ERROR)
+    return console_handler, stderr_handler
+
+
+def _build_file_handler(
+    file_path: Path,
+    max_bytes: int,
+    backup_count: int,
+    formatter: logging.Formatter,
+) -> ConcurrentRotatingFileHandler:
+    file_handler = ConcurrentRotatingFileHandler(
+        str(file_path),
+        maxBytes=max_bytes,
+        backupCount=backup_count,
+        encoding="utf-8",
+    )
+    file_handler.setFormatter(formatter)
+    return file_handler
+
+
 def configure_logger(
     name: str | None = None,
     *,
@@ -237,16 +276,8 @@ def configure_logger(
         return logger
 
     formatter = logging.Formatter(log_format, datefmt=date_format)
-
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setFormatter(formatter)
-    console_handler.addFilter(lambda record: record.levelno < logging.ERROR)
-    logger.addHandler(console_handler)
-
-    stderr_handler = logging.StreamHandler(sys.stderr)
-    stderr_handler.setFormatter(formatter)
-    stderr_handler.setLevel(logging.ERROR)
-    logger.addHandler(stderr_handler)
+    for handler in _build_console_handlers(formatter):
+        logger.addHandler(handler)
 
     log_path = Path(log_dir)
     log_path.mkdir(parents=True, exist_ok=True)
@@ -254,17 +285,6 @@ def configure_logger(
     if max_age_days is not None:
         cleanup_old_logs(log_path, max_age_days, logger=logger)
 
-    resolved_file_name = file_name or name or "automation"
-    if not resolved_file_name.endswith(".log"):
-        resolved_file_name = f"{resolved_file_name}.log"
-    file_path = log_path / resolved_file_name
-    file_handler = ConcurrentRotatingFileHandler(
-        str(file_path),
-        maxBytes=max_bytes,
-        backupCount=backup_count,
-        encoding="utf-8",
-    )
-    file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
-
+    file_path = log_path / _resolve_log_file_name(name, file_name)
+    logger.addHandler(_build_file_handler(file_path, max_bytes, backup_count, formatter))
     return logger
